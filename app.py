@@ -17,7 +17,7 @@ from io import BytesIO
 
 st.set_page_config(page_title="GeoJSON → Superset Excel", layout="centered")
 
-st.title("Convertisseur GeoJSON vers Excel pour Superset")
+st.title("GeoJSON vers Excel pour Superset")
 st.markdown("Déposez un fichier GeoJSON, l'outil va :")
 st.markdown("1) Reprojeter automatiquement en WGS 84 (EPSG:4326)")
 st.markdown("2) Simplifier les géométries pour éviter les erreurs Excel")
