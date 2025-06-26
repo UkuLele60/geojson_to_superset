@@ -18,7 +18,7 @@ from io import BytesIO
 st.set_page_config(page_title="GeoJSON → Superset Excel", layout="centered")
 
 st.title("GeoJSON vers Excel pour Superset")
-st.markdown("Vous pouvez déposer un un fichier GeoJSON, cela permettra de : ")
+st.markdown("Vous pouvez déposer un fichier GeoJSON, cela permettra de : ")
 st.markdown("Créer un fichier .xlsx que vous pourrez télécharger, afin de l'uploader en database sur superset. Cela signifie que le fichier GeoJSON : ")
 st.markdown("1) verra ses géométries être simplifiées (seulement si cela est nécessaire) pour éviter les erreurs Excel, dont le nombre de caractères par case est limité. Vous pourrez d'ailleurs télécharger la version simplifiée du GeoJSON chargé afin de vérifier les géométries simplifiées.")
 st.markdown("2) verra ses multipolygones être éclatés en polygones, car les multipolygones sont mal gérés par Superset pour le moment (version 4.1.2).")
