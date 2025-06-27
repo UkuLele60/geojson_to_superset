@@ -22,7 +22,7 @@ st.markdown("Vous pouvez déposer un fichier GeoJSON, cela permettra de : ")
 st.markdown("Créer un fichier `.xlsx` que vous pourrez télécharger, afin de l'uploader en base dans Superset. Cela signifie que le fichier GeoJSON :")
 st.markdown("- verra ses géométries simplifiées (si nécessaire) pour éviter les erreurs Excel")
 st.markdown("- verra ses multipolygones éclatés en polygones, car mal gérés par Superset (v4.1.2)")
-st.markdown("- sera reprojeté automatiquement en WGS 84 (EPSG:4326)")
+st.markdown("- sera reprojeté automatiquement en WGS 84 (EPSG:4326), car superset ne gère pas encore les autres projections")
 
 uploaded_file = st.file_uploader("Déposez ici un fichier GeoJSON", type=["geojson"])
 
