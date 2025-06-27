@@ -78,7 +78,11 @@ if uploaded_file:
             simplified_features = []
 
             for feature in features:
-                props = dict(feature["properties"])
+                if not feature.get("properties"):
+                   st.warning("Une des entités n'a pas de propriétés. Elle sera traitée sans attributs.")
+                raw_props = feature.get("properties") or {}
+                props = dict(raw_props)
+                
                 geom = shape(feature["geometry"])
                 geom = reproject(geom)
 
