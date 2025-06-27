@@ -19,10 +19,10 @@ st.set_page_config(page_title="GeoJSON → Superset Excel", layout="centered")
 
 st.title("GeoJSON vers Excel pour Superset")
 st.markdown("Vous pouvez déposer un fichier GeoJSON, cela permettra de : ")
-st.markdown("Créer un fichier .xlsx que vous pourrez télécharger, afin de l'uploader en database sur superset. Cela signifie que le fichier GeoJSON : ")
-st.markdown("1) verra ses géométries être simplifiées (seulement si cela est nécessaire) pour éviter les erreurs Excel, dont le nombre de caractères par case est limité. Vous pourrez d'ailleurs télécharger la version simplifiée du GeoJSON chargé afin de vérifier les géométries simplifiées.")
-st.markdown("2) verra ses multipolygones être éclatés en polygones, car les multipolygones sont mal gérés par Superset pour le moment (version 4.1.2).")
-st.markdown("3) Sera reprojeté en WGS 84 (EPSG 4326), car superset ne gère pas encore les autres projections.")
+st.markdown("Créer un fichier `.xlsx` que vous pourrez télécharger, afin de l'uploader en base dans Superset. Cela signifie que le fichier GeoJSON :")
+st.markdown("- verra ses géométries simplifiées (si nécessaire) pour éviter les erreurs Excel")
+st.markdown("- verra ses multipolygones éclatés en polygones, car mal gérés par Superset (v4.1.2)")
+st.markdown("- sera reprojeté automatiquement en WGS 84 (EPSG:4326)")
 
 uploaded_file = st.file_uploader("Déposez ici un fichier GeoJSON", type=["geojson"])
 
@@ -77,12 +77,21 @@ if uploaded_file:
             all_records = []
             simplified_features = []
 
-            for feature in features:
+            for i, feature in enumerate(features):
+                if feature is None:
+                    st.warning(f"L'entité #{i} est vide (None). Elle est ignorée.")
+                    continue
+
+                if feature.get("geometry") is None:
+                    st.warning(f"L'entité #{i} n'a pas de géométrie. Elle est ignorée.")
+                    continue
+
                 if not feature.get("properties"):
-                   st.warning("Une des entités n'a pas de propriétés. Elle sera traitée sans attributs.")
+                    st.warning(f"L'entité #{i} n'a pas de propriété. Elle est traitée sans attribut.")
+
                 raw_props = feature.get("properties") or {}
                 props = dict(raw_props)
-                
+
                 geom = shape(feature["geometry"])
                 geom = reproject(geom)
 
@@ -105,17 +114,17 @@ if uploaded_file:
                     }
                     record["geometry"] = json.dumps(record_geojson, ensure_ascii=False, separators=(',', ':'))
                     record["simplification_info"] = (
-                        f"{orig_pts}→{simp_pts} points (tolérance={tol:.0e})" if tol > 0 else "Aucune simplification"
+                        f"{orig_pts}→{simp_pts} points (tolérance={tol:.0e})"
+                        if tol > 0 else "Aucune simplification"
                     )
+
                     all_records.append(record)
 
-            # Créer Excel en mémoire
             df = pd.DataFrame(all_records)
             excel_buffer = BytesIO()
             df.to_excel(excel_buffer, index=False, engine='openpyxl')
             excel_buffer.seek(0)
 
-            # Créer GeoJSON en mémoire
             final_geojson = {
                 "type": "FeatureCollection",
                 "features": simplified_features
