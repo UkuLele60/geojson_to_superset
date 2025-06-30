@@ -15,7 +15,7 @@ import tempfile  # Pour créer des fichiers temporaires
 from io import BytesIO  # Pour manipuler des fichiers en mémoire (Excel, GeoJSON)
 
 # Configuration de la page Streamlit
-st.set_page_config(page_title="GeoJSON → Superset Excel", layout="centered")
+st.set_page_config(page_title="GeoJSON vers Excel pour Superset", layout="centered")
 
 # Titre et explication utilisateur
 st.title("GeoJSON vers Excel pour Superset")
@@ -25,7 +25,7 @@ st.markdown("- verra ses géométries être simplifiées (si nécessaire) pour �
 st.markdown("- verra ses multipolygones être éclatés en polygones, car mal gérés par Superset (v4.1.2).")
 st.markdown("- sera reprojeté automatiquement en WGS 84 (EPSG:4326), car Superset ne gère pas encore les autres projections.")
 
-#Zone d'upload du fichier
+# Zone d'upload du fichier
 uploaded_file = st.file_uploader("Déposez un fichier GeoJSON", type=["geojson"])
 
 if uploaded_file is not None:
@@ -40,14 +40,14 @@ if uploaded_file is not None:
     # Créer un fichier temporaire pour que Fiona puisse le lire
     with tempfile.NamedTemporaryFile(delete=False, suffix=".geojson") as tmp_input:
         # Lire le contenu du fichier uploadé et l’écrire dans le fichier temporaire
-        tmp_input.write(uploaded_file.read())
+        tmp_input.write(content)
         tmp_input.flush()
 
         try:
             # Ouverture du GeoJSON avec Fiona (qui permet de lire les métadonnées comme le CRS)
             with fiona.open(tmp_input.name, 'r') as src:
-                crs_dict = src.crs # Extraction du système de coordonnées (CRS)
-                features = list(src) # Liste des entités géographiques
+                crs_dict = src.crs  # Extraction du système de coordonnées (CRS)
+                features = list(src)  # Liste des entités géographiques
 
             # Si aucun CRS n’est défini, on suppose EPSG:4326 (WGS 84)
             if not crs_dict:
@@ -72,19 +72,19 @@ if uploaded_file is not None:
                     return sum(len(ring.coords) for ring in rings)
                 return 0
 
-            # Simplifivation un polygone de façon adaptative jusqu'à atteindre un certain nombre de points
+            # Simplifivation adaptative d’un polygone jusqu'à atteindre un certain nombre de points
             def adaptive_polygon_simplify(geom, target_points=780, max_iterations=300):
                 original = total_coords_count(geom)
                 if original <= target_points:
                     return geom, 0.0, original, original
 
-                tolerance = 1e-10  # Tolerance initiale très faible
+                tolerance = 1e-10  # Tolérance initiale très faible
                 simplified = geom.simplify(tolerance, preserve_topology=True)
                 iteration = 0
 
                 while total_coords_count(simplified) > target_points and iteration < max_iterations:
                     error_ratio = total_coords_count(simplified) / target_points
-                    tolerance *= min(error_ratio, 2)  # Augmente progressivement la tolérance
+                    tolerance *= min(error_ratio, 2)
                     simplified = geom.simplify(tolerance, preserve_topology=True)
                     iteration += 1
 
@@ -97,66 +97,68 @@ if uploaded_file is not None:
 
             # Parcours de chaque entité géographique du fichier
             for i, feature in enumerate(features):
-                # Vérifie si l'entité est vide
                 if feature is None:
                     st.warning(f"L'entité #{i} est vide (None). Elle est ignorée.")
                     continue
 
-                # Vérifie si la géométrie est manquante
-                if feature.get("geometry") is None:
-                    st.warning(f"L'entité #{i} n'a pas de géométrie. Elle est ignorée.")
+                # Nouvelles vérifications explicites
+                if "geometry" not in feature:
+                    st.error(f"L'entité #{i} ne contient pas de clé 'geometry'.")
                     continue
-
-                # Vérifie si les propriétés sont manquantes
+                if "properties" not in feature:
+                    st.error(f"L'entité #{i} ne contient pas de clé 'properties'.")
+                    continue
+                if feature.get("geometry") is None:
+                    st.warning(f"L'entité #{i} a une géométrie nulle. Elle est ignorée.")
+                    continue
                 if not feature.get("properties"):
                     st.warning(f"L'entité #{i} n'a pas de propriété. Elle est traitée sans attribut.")
 
-                # Récupération sécurisée des propriétés
-                raw_props = feature.get("properties") or {}
-                props = dict(raw_props)
+                try:
+                    # Récupération sécurisée des propriétés
+                    raw_props = feature.get("properties") or {}
+                    props = dict(raw_props)
 
-                # Conversion de la géométrie au format shapely + reprojection
-                geom = shape(feature["geometry"])
-                geom = reproject(geom)
+                    # Conversion de la géométrie au format shapely + reprojection
+                    geom = shape(feature["geometry"])
+                    geom = reproject(geom)
 
-                # Éclatement des MultiPolygon en plusieurs Polygons
-                polys = list(geom.geoms) if isinstance(geom, MultiPolygon) else [geom]
+                    # Éclatement des MultiPolygon en plusieurs Polygons
+                    polys = list(geom.geoms) if isinstance(geom, MultiPolygon) else [geom]
 
-                for poly in polys:
-                    # Simplification du polygone
-                    simplified_geom, tol, orig_pts, simp_pts = adaptive_polygon_simplify(poly)
+                    for poly in polys:
+                        simplified_geom, tol, orig_pts, simp_pts = adaptive_polygon_simplify(poly)
+                        geom_json = mapping(simplified_geom)
 
-                    # Conversion shapely en GeoJSON
-                    geom_json = mapping(simplified_geom)
+                        simplified_features.append({
+                            "type": "Feature",
+                            "geometry": geom_json,
+                            "properties": props
+                        })
 
-                    # Ajout de la géométrie simplifiée au GeoJSON de sortie
-                    simplified_features.append({
-                        "type": "Feature",
-                        "geometry": geom_json,
-                        "properties": props
-                    })
+                        record = props.copy()
+                        record_geojson = {
+                            "type": "Feature",
+                            "geometry": geom_json
+                        }
+                        record["geometry"] = json.dumps(record_geojson, ensure_ascii=False, separators=(',', ':'))
+                        record["simplification_info"] = (
+                            f"{orig_pts}→{simp_pts} points (tolérance={tol:.0e})"
+                            if tol > 0 else "Aucune simplification"
+                        )
 
-                    # Préparation d'un enregistrement pour la table Excel
-                    record = props.copy()
-                    record_geojson = {
-                        "type": "Feature",
-                        "geometry": geom_json
-                    }
-                    record["geometry"] = json.dumps(record_geojson, ensure_ascii=False, separators=(',', ':'))
-                    record["simplification_info"] = (
-                        f"{orig_pts}→{simp_pts} points (tolérance={tol:.0e})"
-                        if tol > 0 else "Aucune simplification"
-                    )
+                        all_records.append(record)
 
-                    all_records.append(record)
+                except Exception as sub_e:
+                    st.error(f"Erreur avec l'entité #{i} : {sub_e}")
 
-            # Création d’un fichier Excel en mémoire à partir des enregistrements
+            # Création d’un fichier Excel à partir des enregistrements
             df = pd.DataFrame(all_records)
             excel_buffer = BytesIO()
             df.to_excel(excel_buffer, index=False, engine='openpyxl')
             excel_buffer.seek(0)
 
-            # Création d’un GeoJSON simplifié en mémoire
+            # Création d’un GeoJSON simplifié
             final_geojson = {
                 "type": "FeatureCollection",
                 "features": simplified_features
