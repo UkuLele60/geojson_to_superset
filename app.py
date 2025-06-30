@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """
 Created on Thu Jun 26 10:26:20 2025
-@author: LGrillon
 """
 
 # Importation des bibliothèques nécessaires
@@ -26,20 +25,24 @@ st.markdown("- verra ses géométries être simplifiées (si nécessaire) pour �
 st.markdown("- verra ses multipolygones être éclatés en polygones, car mal gérés par Superset (v4.1.2).")
 st.markdown("- sera reprojeté automatiquement en WGS 84 (EPSG:4326), car Superset ne gère pas encore les autres projections.")
 
-# Zone d'upload du fichier
-uploaded_file = st.file_uploader("Déposez ici un fichier GeoJSON", type=["geojson"])
+#Zone d'upload du fichier
+uploaded_file = st.file_uploader("Déposez un fichier GeoJSON", type=["geojson"])
 
-if uploaded_file:
-    # Création d'un fichier temporaire pour y écrire le contenu uploadé
+if uploaded_file is not None:
+    # Repositionner le curseur au début du fichier (par sécurité)
+    uploaded_file.seek(0)
+
+    # Créer un fichier temporaire pour que Fiona puisse le lire
     with tempfile.NamedTemporaryFile(delete=False, suffix=".geojson") as tmp_input:
+        # Lire le contenu du fichier uploadé et l’écrire dans le fichier temporaire
         tmp_input.write(uploaded_file.read())
         tmp_input.flush()
 
         try:
-            # Ouverture du fichier GeoJSON avec fiona (permet de lire les métadonnées comme le CRS)
+            # Ouverture du GeoJSON avec Fiona (qui permet de lire les métadonnées comme le CRS)
             with fiona.open(tmp_input.name, 'r') as src:
-                crs_dict = src.crs  # Extraction du système de coordonnées (CRS)
-                features = list(src)  # Liste des entités géographiques
+                crs_dict = src.crs # Extraction du système de coordonnées (CRS)
+                features = list(src) # Liste des entités géographiques
 
             # Si aucun CRS n’est défini, on suppose EPSG:4326 (WGS 84)
             if not crs_dict:
