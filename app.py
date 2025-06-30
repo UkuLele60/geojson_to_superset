@@ -29,8 +29,13 @@ st.markdown("- sera reprojeté automatiquement en WGS 84 (EPSG:4326), car Supers
 uploaded_file = st.file_uploader("Déposez un fichier GeoJSON", type=["geojson"])
 
 if uploaded_file is not None:
-    # Repositionner le curseur au début du fichier (par sécurité)
-    uploaded_file.seek(0)
+    # Lire le contenu une seule fois
+    content = uploaded_file.read()
+
+    if not content.strip():
+        st.error("Le fichier est vide. Assurez-vous que ce n'est pas un téléchargement vide.")
+    else:
+        uploaded_file.seek(0)  # Au cas où Fiona relit depuis le début
 
     # Créer un fichier temporaire pour que Fiona puisse le lire
     with tempfile.NamedTemporaryFile(delete=False, suffix=".geojson") as tmp_input:
