@@ -21,7 +21,7 @@ st.set_page_config(page_title="GeoJSON → Superset Excel", layout="centered")
 # Titre et explication utilisateur
 st.title("GeoJSON vers Excel pour Superset")
 st.markdown("Vous pouvez déposer un fichier GeoJSON, cela permettra de :")
-st.markdown("Créer un fichier `.xlsx` que vous pourrez télécharger, afin de l'uploader en base dans Superset. Cela signifie que le fichier GeoJSON chargé :")
+st.markdown("Créer un fichier .xlsx que vous pourrez télécharger, afin de l'uploader en base dans Superset. Cela signifie que le fichier GeoJSON chargé :")
 st.markdown("- verra ses géométries être simplifiées (si nécessaire) pour éviter les erreurs Excel, qui dispose d'un nombre limité de caractères par case.")
 st.markdown("- verra ses multipolygones être éclatés en polygones, car mal gérés par Superset (v4.1.2).")
 st.markdown("- sera reprojeté automatiquement en WGS 84 (EPSG:4326), car Superset ne gère pas encore les autres projections.")
